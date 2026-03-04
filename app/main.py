@@ -1,0 +1,25 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.api.v1 import api_router
+
+app = FastAPI(
+    title="Multi-industry ERP System API",
+    description="Backend API for managing Operations, Inventory, Logistics, and KPI",
+    version="1.0.0",
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # Wildcard doesn't support credentials=True
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the ERP System API"}
