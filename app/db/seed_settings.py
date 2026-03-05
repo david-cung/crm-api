@@ -1,9 +1,13 @@
-from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.core.config import settings
 from app.models.setting import Setting
 
 def seed_settings():
-    db = SessionLocal()
+    db_url = settings.DIRECT_URL if settings.DIRECT_URL else settings.get_database_url()
+    engine = create_engine(db_url.replace("postgres://", "postgresql://"))
+    Session = sessionmaker(bind=engine)
+    db = Session()
     try:
         defaults = [
             {"key": "kpi_project_done_points", "value": "100", "category": "kpi", "description": "Points awarded for completing a project"},

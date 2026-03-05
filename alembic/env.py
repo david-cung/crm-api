@@ -23,7 +23,8 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("postgres://", "postgresql://"))
+db_url = settings.DIRECT_URL if settings.DIRECT_URL else settings.get_database_url()
+config.set_main_option("sqlalchemy.url", db_url.replace("postgres://", "postgresql://"))
 
 
 

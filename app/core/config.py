@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Multi-industry ERP System"
@@ -12,8 +13,12 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "erp_db"
     POSTGRES_PORT: str = "5432"
     
-    @property
-    def DATABASE_URL(self) -> str:
+    DATABASE_URL: Optional[str] = None
+    DIRECT_URL: Optional[str] = None
+    
+    def get_database_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
     # Security
