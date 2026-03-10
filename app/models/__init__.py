@@ -5,3 +5,4 @@ from app.models.project import Project
 from app.models.logistics import Shipment, ShipmentIncident
 from app.models.kpi import KPIEvent, UserKPI
 from app.models.setting import Setting
+from app.models.procurement import Supplier, PurchaseOrder, PurchaseOrderItem, GoodsReceipt
