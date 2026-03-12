@@ -9,5 +9,5 @@ from app.models.inventory import (
     StockTransaction, StockTransfer, InventoryAudit, AuditItem
 )
 from app.models.project import Project
-from app.models.logistics import Shipment, ShipmentIncident
+from app.models.logistics import Shipment, ShipmentIncident, Vehicle, Driver, Trip
 from app.models.kpi import KPIEvent, UserKPI

@@ -4,16 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.logistics import Shipment, ShipmentIncident
+from app.models.logistics import Shipment, ShipmentIncident, Vehicle, Driver, Trip
 from app.schemas.logistics import (
     ShipmentCreate, 
     ShipmentUpdate, 
     ShipmentResponse, 
     ShipmentIncidentCreate, 
-    ShipmentIncidentResponse
+    ShipmentIncidentResponse,
+    VehicleCreate, VehicleUpdate, VehicleResponse,
+    DriverCreate, DriverUpdate, DriverResponse,
+    TripCreate, TripUpdate, TripResponse
 )
 from app.core.redis import redis_client
 from app.services.setting_service import setting_service
+from app.services.kpi_service import kpi_service
 
 CACHE_KEY_PREFIX = "shipment:"
 CACHE_EXPIRE = 3600  # 1 hour
@@ -120,3 +124,127 @@ def report_incident(
     redis_client.delete(f"{CACHE_KEY_PREFIX}{incident.shipment_id}")
     
     return incident
+
+# --- FLEET MANAGEMENT ---
+
+@router.get("/vehicles", response_model=List[VehicleResponse])
+def read_vehicles(
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    return db.query(Vehicle).offset(skip).limit(limit).all()
+
+@router.post("/vehicles", response_model=VehicleResponse)
+def create_vehicle(
+    *,
+    db: Session = Depends(get_db),
+    vehicle_in: VehicleCreate,
+) -> Any:
+    vehicle = Vehicle(**vehicle_in.model_dump())
+    db.add(vehicle)
+    db.commit()
+    db.refresh(vehicle)
+    return vehicle
+
+@router.patch("/vehicles/{vehicle_id}", response_model=VehicleResponse)
+def update_vehicle(
+    *,
+    db: Session = Depends(get_db),
+    vehicle_id: int,
+    vehicle_in: VehicleUpdate,
+) -> Any:
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    update_data = vehicle_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(vehicle, field, value)
+    
+    db.add(vehicle)
+    db.commit()
+    db.refresh(vehicle)
+    return vehicle
+
+@router.get("/drivers", response_model=List[DriverResponse])
+def read_drivers(
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    return db.query(Driver).offset(skip).limit(limit).all()
+
+@router.post("/drivers", response_model=DriverResponse)
+def create_driver(
+    *,
+    db: Session = Depends(get_db),
+    driver_in: DriverCreate,
+) -> Any:
+    driver = Driver(**driver_in.model_dump())
+    db.add(driver)
+    db.commit()
+    db.refresh(driver)
+    return driver
+
+@router.patch("/drivers/{driver_id}", response_model=DriverResponse)
+def update_driver(
+    *,
+    db: Session = Depends(get_db),
+    driver_id: int,
+    driver_in: DriverUpdate,
+) -> Any:
+    driver = db.query(Driver).filter(Driver.id == driver_id).first()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    update_data = driver_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(driver, field, value)
+    
+    db.add(driver)
+    db.commit()
+    db.refresh(driver)
+    return driver
+
+# --- DISPATCH MANAGEMENT ---
+
+@router.get("/trips", response_model=List[TripResponse])
+def read_trips(
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    return db.query(Trip).offset(skip).limit(limit).all()
+
+@router.post("/trips", response_model=TripResponse)
+def create_trip(
+    *,
+    db: Session = Depends(get_db),
+    trip_in: TripCreate,
+) -> Any:
+    trip = Trip(**trip_in.model_dump())
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+@router.patch("/trips/{trip_id}", response_model=TripResponse)
+def update_trip(
+    *,
+    db: Session = Depends(get_db),
+    trip_id: int,
+    trip_in: TripUpdate,
+) -> Any:
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    update_data = trip_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(trip, field, value)
+    
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip
