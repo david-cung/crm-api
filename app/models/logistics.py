@@ -23,6 +23,13 @@ class Shipment(Base):
     actual_arrival = Column(DateTime, nullable=True)
     total_cost = Column(Float, default=0.0)
     
+    # Links to other modules
+    po_id = Column(Integer, ForeignKey("purchaseorder.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)
+
+    # Relationships
+    purchase_order = relationship("PurchaseOrder")
+    project = relationship("Project")
     incidents = relationship("ShipmentIncident", back_populates="shipment")
 
 class ShipmentIncident(Base):

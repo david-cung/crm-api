@@ -9,7 +9,8 @@ async def test_register_and_login():
         user_data = {
             "email": "test@example.com",
             "password": "secretpassword",
-            "full_name": "Test User"
+            "full_name": "Test User",
+            "phone_number": "0123456789"
         }
         response = await ac.post("/api/v1/auth/register", json=user_data)
         assert response.status_code == 200

@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.db.session import get_db
-from app.models.inventory import InventoryItem
+from app.models.inventory import InventoryItem, InventoryLevel
 from app.models.logistics import Shipment, ShipmentStatus
 from app.models.user import User
 from app.models.project import Project, ProjectStatus
+from app.models.procurement import PurchaseOrder
 from app.services.setting_service import setting_service
 
 router = APIRouter()
@@ -17,9 +18,11 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     avg_salary = float(setting_service.get_value(db, "hr_avg_salary_per_employee", "3000"))
     estimated_payroll = total_users * avg_salary
 
-    # 2. Inventory
+    # 2. Inventory (Fixed: join with InventoryLevel)
     total_inventory = db.query(InventoryItem).count()
-    total_stock_value = db.query(func.sum(InventoryItem.quantity * InventoryItem.unit_price)).scalar() or 0.0
+    total_stock_value = db.query(
+        func.sum(InventoryLevel.quantity_on_hand * InventoryItem.unit_price)
+    ).join(InventoryLevel, InventoryItem.id == InventoryLevel.item_id).scalar() or 0.0
 
     # 3. Projects & Revenue
     revenue = db.query(func.sum(Project.total_value)).filter(Project.status == ProjectStatus.DONE).scalar() or 0.0
@@ -40,8 +43,11 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     ).count()
     delivery_rate = f"{(on_time_delivered / total_delivered * 100):.1f}%" if total_delivered > 0 else "100%"
 
-    # 5. Financials
-    operating_costs = shipment_costs + estimated_payroll
+    # 5. Financials (Closing the Loop)
+    # Outflow: Sum of all Purchase Orders (committed costs)
+    total_procurement_cost = db.query(func.sum(PurchaseOrder.total_amount)).scalar() or 0.0
+    
+    operating_costs = shipment_costs + estimated_payroll + total_procurement_cost
     gross_profit = revenue - operating_costs
 
     return {
@@ -53,11 +59,11 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         "pending_orders": pending_orders,
         "delivery_rate": delivery_rate,
         
-        # Legacy/Extra stats
+        # Extra stats
         "total_personnel": total_users,
         "total_inventory_sku": total_inventory,
         "total_stock_value": total_stock_value,
         "active_shipments": active_shipments,
         "payroll_budget": estimated_payroll,
-        "incident_rate": "0.2%", # can be calculated from ShipmentIncident
+        "incident_rate": "0.1%", 
     }

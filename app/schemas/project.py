@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from app.models.project import ProjectStatus
 
@@ -16,8 +16,25 @@ class ProjectBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
-class ProjectCreate(ProjectBase):
+class ProjectItemBase(BaseModel):
+    item_id: int
+    required_quantity: int
+    issued_quantity: int = 0
+
+class ProjectItemCreate(ProjectItemBase):
     pass
+
+class ProjectItemResponse(ProjectItemBase):
+    id: int
+    item_name: Optional[str] = None
+    item_sku: Optional[str] = None
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class ProjectCreate(ProjectBase):
+    items: Optional[List[ProjectItemCreate]] = []
 
 class ProjectUpdate(ProjectBase):
     title: Optional[str] = None
@@ -31,6 +48,7 @@ class ProjectUpdate(ProjectBase):
     total_value: Optional[float] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    items: Optional[List[ProjectItemCreate]] = None
 
 class ProjectInDBBase(ProjectBase):
     id: int
@@ -41,4 +59,4 @@ class ProjectInDBBase(ProjectBase):
     }
 
 class ProjectResponse(ProjectInDBBase):
-    pass
+    items: List[ProjectItemResponse] = []

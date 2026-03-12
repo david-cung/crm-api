@@ -15,7 +15,7 @@ def test_create_inventory_item(client: TestClient):
         "unit_price": 50.5,
         "category": "General"
     }
-    response = client.post("/api/v1/inventory/", json=data)
+    response = client.post("/api/v1/inventory/items", json=data)
     assert response.status_code == 200
     item = response.json()
     assert item["sku"] == data["sku"]
@@ -29,7 +29,7 @@ def test_create_project(client: TestClient):
         "status": "DRAFT",
         "total_value": 10000.0
     }
-    response = client.post("/api/v1/projects/", json=data)
+    response = client.post("/api/v1/projects", json=data)
     assert response.status_code == 200
     project = response.json()
     assert project["title"] == data["title"]
