@@ -136,23 +136,58 @@ def read_transactions(
 @router.get("/stats", response_model=Any)
 def get_inventory_stats(db: Session = Depends(get_db)):
     # Summary stats for the warehouse dashboard
-    items_count = db.query(InventoryItem).count()
-    
-    # Calculate low stock items (Available <= reorder_point)
-    # This is a bit complex in pure SQL because available is computed,
-    # for simplicity in this MVP we'll do it in memory or simple query if possible.
     all_items = db.query(InventoryItem).all()
+    items_count = len(all_items)
+    
     low_stock_count = 0
+    total_on_hand = 0
+    total_value = 0.0
     for item in all_items:
-        available = sum(lvl.quantity_on_hand - lvl.quantity_reserved for lvl in item.levels)
+        on_hand = sum(lvl.quantity_on_hand for lvl in item.levels)
+        reserved = sum(lvl.quantity_reserved for lvl in item.levels)
+        available = on_hand - reserved
+        
+        total_on_hand += on_hand
+        total_value += item.unit_price * on_hand
+        
         if available <= item.reorder_point:
             low_stock_count += 1
             
     active_transfers = db.query(StockTransfer).filter(StockTransfer.status != "COMPLETED").count()
     
+    # 1. Stock Turnover (Last 30 days)
+    # Turnover = Cost of Goods Sold / Average Inventory
+    # Simple MVP version: Total OUT qty / Total On Hand
+    from datetime import timedelta
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    total_out = db.query(StockTransaction).filter(
+        StockTransaction.transaction_type == "OUT",
+        StockTransaction.created_at >= month_ago
+    ).all()
+    out_qty = sum(abs(tx.quantity) for tx in total_out)
+    turnover_rate = (out_qty / (total_on_hand + out_qty)) * 100 if (total_on_hand + out_qty) > 0 else 0
+    
+    # 2. Warehouse Space (Utilization)
+    # Placeholder: assume max capacity 10,000 units across all warehouses
+    space_utilization = (total_on_hand / 10000) * 100 if items_count > 0 else 0
+    
+    # 3. Average Receiving Time (Last 10 GRNs)
+    from app.models.procurement import GoodsReceipt, PurchaseOrder
+    grns = db.query(GoodsReceipt).order_by(GoodsReceipt.created_at.desc()).limit(10).all()
+    lead_times = []
+    for grn in grns:
+        if grn.purchase_order:
+            diff = grn.created_at - grn.purchase_order.created_at
+            lead_times.append(diff.total_seconds() / 3600) # in hours
+    
+    avg_lead_time = sum(lead_times) / len(lead_times) if lead_times else 0
+
     return {
         "total_items": items_count,
         "low_stock_items": low_stock_count,
         "active_transfers": active_transfers,
-        "total_value": sum(i.unit_price * sum(l.quantity_on_hand for l in i.levels) for i in all_items)
+        "total_value": total_value,
+        "stock_turnover": f"{round(turnover_rate, 1)}%",
+        "warehouse_space": f"{round(space_utilization, 1)}%",
+        "receiving_time": f"{round(avg_lead_time, 1)}h"
     }
